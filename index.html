@@ -243,7 +243,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     before = asked; box.value = next; $('revert').hidden = false; $('orig').hidden = false; $('origText').textContent = asked;
     $('msg').textContent = done(next, asked); validate();
   }
-  $('sum').addEventListener('click', () => ask($('sum'), 'まとめています…', sumLabel(), async t => (await call('summarize', {text:t}, 30000)).text,
+  $('sum').addEventListener('click', () => ask($('sum'), 'まとめています…', sumLabel(), async t => (await call('summarize', {text:t}, 45000)).text,
     () => `${limit}文字以内にまとめました。元の文と見比べて、違うところは欄で直してください。`));
   $('fix').addEventListener('click', () => ask($('fix'), '文章を修正しています…', '文章を修正', async t => { const r = await call('correct', {lines:[t], source:'voice'}); return Array.isArray(r.lines) && r.lines.length === 1 ? r.lines[0] : null; },
     (next, asked) => next === flat(asked) ? '直すところは見つかりませんでした。' : '文章を修正しました。違うところは欄で直してください。'));
