@@ -158,6 +158,10 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(link.api||'');
   if (!valid) { $('bad').hidden = false; conn('ng', 'つながっていません'); return; }
   const PENDING = 'memorial-post:' + link.e + ':pending', DRAFT = 'memorial-post:' + link.e + ':draft';
+  // 音声入力だけのページ（2026-10-28 午前に公開）で送りかけた投稿も、同じIDで再送できるよう引き継ぐ。
+  const LEGACY = 'memorial-voice:' + link.e + ':pending';
+  if (!store.local(PENDING) && store.local(LEGACY)) store.local(PENDING, store.local(LEGACY));
+  store.local(LEGACY, null);
 
   // GASのdoPostへ送る（会場PCのアプリと同じ、事前確認の起きない text/plain）。
   async function call(action, data = {}, timeout = 20000) {
