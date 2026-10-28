@@ -42,7 +42,7 @@ h1{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em;
 .vSay{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:.1em;margin:18px 0 0}
 .vSub{font-size:14px;color:var(--ink2);margin:6px 0 0;min-height:1.6em}
 .vSub.rec{color:var(--ng);font-weight:700}
-.note{font-size:14px;margin:-8px 0 12px;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--warn)}
+.note{font-size:14px;margin:12px 0;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--warn)}
 .steps{margin:0 0 4px;padding-left:1.4em;font-size:14px;color:var(--ink2)}.steps .red{color:var(--ng)}
 .recBadge{display:inline-block;margin:14px 0 0;padding:4px 14px;border-radius:999px;background:var(--ng);color:var(--bg);font-weight:700;letter-spacing:.12em}
 .recBadge span{animation:blink 1s steps(2,start) infinite}
@@ -69,8 +69,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
 
   <div class="panel" id="talk" hidden>
     <h1>音声入力でメッセージを書く</h1>
-    <p class="lead">お話しになった言葉を<b>文字にして</b>送ります（声そのものは送られず、残りません）。文字にしたあと、直してから送れます。</p>
-    <p class="note" id="limitNote">メッセージは<b>100文字以内</b>でお願いします（お話しで20秒ほどです）。長くなったときは、あとで100文字にまとめることもできます。</p>
+    <p class="note" id="limitNote">メッセージは100文字以内です。長くなった場合は、あとで修正することができます。</p>
     <ol class="steps"><li>緑のマイクを押すと録音が始まります</li><li>マイクが<b class="red">赤</b>の間は録音中です。お話しください</li><li>話し終えたら、赤いマイクをもう一度押します</li></ol>
     <div class="mic">
       <button type="button" class="vMic" id="vMic" aria-label="録音を始める"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
@@ -176,7 +175,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     const mic = $('vMic'); mic.classList.toggle('rec', mode === 'rec'); mic.disabled = mode === 'starting' || mode === 'wait'; mic.hidden = mode === 'error';
     mic.setAttribute('aria-label', mode === 'rec' ? '録音を止める' : '録音を始める');
     $('vSub').classList.toggle('rec', mode === 'rec'); $('talkRetry').hidden = mode !== 'error'; $('recBadge').hidden = mode !== 'rec';
-    $('vSay').textContent = {idle:'マイクを押すと録音が始まります', starting:'マイクを準備しています', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
+    $('vSay').textContent = {idle:'マイクを押して開始', starting:'マイクを準備しています', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
     $('vSub').textContent = mode === 'starting' ? 'マイクを準備しています…' : mode === 'wait' ? 'しばらくお待ちください。' : mode === 'error' ? '下の「文字で入力する」から、文字でも送れます。' : '';
   }
   const clock = sec => `${Math.floor(sec/60)}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
@@ -300,7 +299,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     }
     limit = Number(feed.settings && feed.settings.limit) || 100;
     maxSec = Math.min(180, Math.max(20, Number(feed.capabilities && feed.capabilities.voiceSeconds) || 90));
-    $('limitNote').innerHTML = `メッセージは<b>${limit}文字以内</b>でお願いします（お話しで${Math.max(5, Math.round(limit / 5))}秒ほどです）。長くなったときは、あとで${limit}文字にまとめることもできます。`;
+    $('limitNote').textContent = `メッセージは${limit}文字以内です。長くなった場合は、あとで修正することができます。`;
     if (!(feed.capabilities && feed.capabilities.voice)) { $('talk').hidden = true; $('bad').hidden = false; $('badText').textContent = 'この案件では、いま音声入力を使えません。下の「文字で入力する」からお送りください。'; return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') { ui('error', 'この端末では録音できません。'); return; }
     try {
