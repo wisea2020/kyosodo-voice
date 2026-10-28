@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>声でメッセージ</title>
+<style>
+/* スマホの音声入力ページ（docs/VOICE_INPUT_IMPLEMENTATION.md）。GASの画面の中ではマイクが使えないため、GASの外（GitHub Pages）に置く。
+   案件・投稿用合言葉・GASのURLは投稿画面から #以降 で受け取る。合言葉・キー・投稿内容はこのファイルに含めない。配色は投稿画面と同じ。 */
+:root{
+  --bg:#f5f4ef;--paper:#fffefa;--ink:#26332e;--ink2:#62706a;--line:#dfe2da;
+  --accent:#426b5c;--accent-ink:#ffffff;--accent-soft:#e6ede7;--warn:#8f5f26;--warn-soft:#f8efdf;--ng:#a3443a;--ng-soft:#f7e5e1;
+  --serif:'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif;
+  --sans:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141b19;--paper:#1c2522;--ink:#e4eae5;--ink2:#9fb0a7;--line:#2f3b37;
+  --accent:#7fb29c;--accent-ink:#10201a;--accent-soft:#233630;--warn:#e0b678;--warn-soft:#3a2f1e;--ng:#ec9a8f;--ng-soft:#3d2421;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;padding:16px 16px max(24px,env(safe-area-inset-bottom))}
+button,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+main{max-width:560px;margin:0 auto}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
+h1{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em;margin:0}
+.lead{color:var(--ink2);font-size:14px;margin:6px 0 16px}
+.label{display:block;font-weight:700;font-size:13px;margin:16px 0 8px}
+.rels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.rels button{padding:12px 8px;border:1px solid var(--line);border-radius:11px;background:var(--bg);font-size:15px}
+.rels button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:11px;padding:11px 16px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row{display:flex;gap:10px;margin-top:16px}.row .btn{flex:1;padding:14px;font-size:16px}
+.mic{text-align:center;padding:12px 0 4px}
+.vMic{width:min(52vw,180px);aspect-ratio:1;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;margin:8px auto 0}
+.vMic svg{width:46%;height:46%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.vMic.rec{background:var(--ng);animation:pulse 1.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--ng-soft)}100%{box-shadow:0 0 0 24px transparent}}
+@media (prefers-reduced-motion:reduce){.vMic.rec{animation:none;box-shadow:0 0 0 10px var(--ng-soft)}}
+.vSay{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:.1em;margin:18px 0 0}
+.vSub{font-size:14px;color:var(--ink2);margin:6px 0 0;min-height:1.6em}
+.vSub.rec{color:var(--ng);font-weight:700}
+textarea{width:100%;min-height:170px;font-family:var(--serif);font-size:19px;line-height:1.8;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);resize:vertical}
+.count{text-align:right;font-size:13px;color:var(--ink2);margin-top:4px}.count.over{color:var(--ng);font-weight:700}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.tools .btn{padding:9px 14px;font-size:14px}
+.msg{font-size:13px;color:var(--ink2);margin-top:6px}
+details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;padding:10px;border:1px dashed var(--line);border-radius:10px}
+.preview{border:1px solid var(--line);border-radius:12px;padding:22px 18px;text-align:center;background:var(--bg)}
+.preview p{font-family:var(--serif);font-size:20px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.preview span{display:block;margin-top:12px;color:var(--ink2);font-size:13px;letter-spacing:.12em}
+.status{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:14px;font-weight:700}
+.status.wait{background:var(--warn-soft);color:var(--warn)}.status.ng{background:var(--ng-soft);color:var(--ng)}
+.back{display:block;text-align:center;margin-top:16px;font-size:14px;color:var(--ink2)}
+.done{text-align:center}.done h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:8px 0}
+</style>
+<main>
+  <div class="panel" id="bad" hidden>
+    <h1>ページを開けませんでした</h1>
+    <p class="lead" id="badText">会場の投稿画面から「声で入力」を押して開いてください。</p>
+  </div>
+
+  <div class="panel" id="talk" hidden>
+    <h1>声でメッセージを残す</h1>
+    <p class="lead">マイクを押してお話しください。話し終えたら、もう一度マイクを押します。文字にしたあと、直してから送れます。</p>
+    <div class="mic">
+      <button type="button" class="vMic" id="vMic" aria-label="録音を始める"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <p class="vSay" id="vSay">マイクを押してお話しください</p>
+      <p class="vSub" id="vSub" role="status"></p>
+    </div>
+    <div class="row" id="talkRetry" hidden><button type="button" class="btn primary" id="retry">もう一度話す</button></div>
+  </div>
+
+  <div class="panel" id="edit" hidden>
+    <h1>お話しいただいた内容</h1>
+    <p class="lead">文字が違うところは欄で直してください。ご遺族もご覧になります。</p>
+    <span class="label" id="relLabel">故人とのご関係</span>
+    <div class="rels" id="rels" role="group" aria-labelledby="relLabel"></div>
+    <label class="label" for="text">メッセージ</label>
+    <textarea id="text"></textarea>
+    <div class="count" id="count"></div>
+    <div class="tools">
+      <button type="button" class="btn" id="sum" hidden></button>
+      <button type="button" class="btn" id="fix">文章を修正</button>
+      <button type="button" class="btn" id="revert" hidden>元の文に戻す</button>
+    </div>
+    <p class="msg" id="msg" role="status"></p>
+    <details id="orig" hidden><summary>元の文を見る</summary><p id="origText"></p></details>
+    <div class="row">
+      <button type="button" class="btn" id="again">話し直す</button>
+      <button type="button" class="btn primary" id="review" disabled>確認へ進む</button>
+    </div>
+  </div>
+
+  <div class="panel" id="confirm" hidden>
+    <h1>この内容で送りますか</h1>
+    <p class="lead">画面にはこのように表示されます。お名前ではなく、ご関係が表示されます。</p>
+    <div class="preview"><p id="pvText"></p><span id="pvRel"></span></div>
+    <div class="row">
+      <button type="button" class="btn" id="backEdit">直す</button>
+      <button type="button" class="btn primary" id="send">送る</button>
+    </div>
+    <div class="status" id="status" hidden></div>
+  </div>
+
+  <div class="panel done" id="done" hidden>
+    <h2>ありがとうございました</h2>
+    <p class="lead">会場の画面に、お寄せいただいたメッセージが加わりました。</p>
+    <div class="row"><button type="button" class="btn" id="more">もう一通話す</button></div>
+  </div>
+
+  <a class="back" id="backLink" hidden>文字で入力する（投稿画面に戻る）</a>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const RELATIONS = ['ご親族','ご友人','お仕事関係','ご近所・地域','その他'];
+  const TYPES = {'audio/webm':'audio/webm','audio/ogg':'audio/ogg','audio/mp4':'audio/mp4','audio/x-m4a':'audio/mp4','audio/aac':'audio/aac','audio/wav':'audio/wav'};
+  const charLen = s => Array.from(s).length, flat = t => t.replace(/\s*\n\s*/g,'').trim();
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9]/g,'');
+  const store = {get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},
+    local(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}};
+
+  // 投稿画面から #e=案件&k=投稿用合言葉&api=GASのURL で受け取る。アドレス欄からは消し、このタブの間だけ覚える（再読込用）。
+  const hash = new URLSearchParams(location.hash.slice(1));
+  let link = {e:hash.get('e')||'', k:hash.get('k')||'', api:hash.get('api')||''};
+  if (link.e) { store.set('voice-link', JSON.stringify(link)); history.replaceState(null, '', location.pathname + location.search); }
+  else { try { link = JSON.parse(store.get('voice-link') || '{}'); } catch (e) { link = {}; } }
+  const valid = /^[A-Za-z0-9_-]{1,48}$/.test(link.e||'') && /^[A-Za-z0-9]{1,256}$/.test(link.k||'') &&
+    /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(link.api||'');
+  if (!valid) { $('bad').hidden = false; return; }
+  $('backLink').href = link.api + '?event=' + encodeURIComponent(link.e) + '&role=post#k=' + link.k;
+  $('backLink').hidden = false;
+  const PENDING = 'memorial-voice:' + link.e + ':pending';
+
+  // GASのdoPostへ送る（会場PCのアプリと同じ、事前確認の起きない text/plain）。
+  async function call(action, data = {}, timeout = 20000) {
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), timeout);
+    try {
+      const r = await fetch(link.api, {method:'POST', body:JSON.stringify({...data, action, eventId:link.e, role:'post', token:link.k}), signal:ctl.signal});
+      if (!r.ok) throw new Error('http_' + r.status);
+      const result = await r.json();
+      if (!result || result.ok !== true) throw new Error(result && result.error || 'invalid_response');
+      return result;
+    } finally { clearTimeout(timer); }
+  }
+
+  let limit = 100, maxSec = 90, rel = '', sending = null, before = null, fixRun = 0;
+  const show = id => ['talk','edit','confirm','done'].forEach(s => $(s).hidden = s !== id);
+  RELATIONS.forEach(r => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = r; b.setAttribute('aria-pressed','false');
+    b.addEventListener('click', () => { rel = r; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed', String(x === b))); validate(); });
+    $('rels').append(b);
+  });
+
+  /* 録音：中央のマイクで開始・停止。上限秒数で自動停止してそのまま文字にする。やめる・画面を離れたらマイクを止めて捨てる。 */
+  let run = 0, stream = null, recorder = null, chunks = [], recStart = 0, recT = null;
+  function stopMic() {
+    clearInterval(recT); recT = null;
+    const r = recorder; recorder = null; chunks = [];
+    if (r) { r.ondataavailable = null; r.onstop = null; try { if (r.state !== 'inactive') r.stop(); } catch (e) {} }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+  function ui(mode, msg = '') {
+    const mic = $('vMic'); mic.classList.toggle('rec', mode === 'rec'); mic.disabled = mode === 'starting' || mode === 'wait'; mic.hidden = mode === 'error';
+    mic.setAttribute('aria-label', mode === 'rec' ? '録音を止める' : '録音を始める');
+    $('vSub').classList.toggle('rec', mode === 'rec'); $('talkRetry').hidden = mode !== 'error';
+    $('vSay').textContent = {idle:'マイクを押してお話しください', starting:'お話ください', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
+    $('vSub').textContent = mode === 'starting' ? 'マイクを準備しています…' : mode === 'wait' ? 'しばらくお待ちください。' : mode === 'error' ? '下の「文字で入力する」から、文字でも送れます。' : '';
+  }
+  const clock = sec => `${Math.floor(sec/60)}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
+  async function start() {
+    run++; stopMic(); const id = run; show('talk'); ui('starting');
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, channelCount:1}});
+      if (id !== run) { s.getTracks().forEach(t => t.stop()); return; }
+      stream = s;
+      const type = ['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/mp4','audio/webm'].find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+      const r = new MediaRecorder(s, {...(type ? {mimeType:type} : {}), audioBitsPerSecond:32000}); recorder = r;
+      r.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      r.onstop = () => { const got = chunks, mime = (r.mimeType || (got[0] && got[0].type) || '').split(';')[0].trim(), sec = (Date.now() - recStart) / 1000; stopMic(); transcribe(id, got, mime, sec); };
+      r.start(1000); recStart = Date.now(); ui('rec'); tick(id); recT = setInterval(() => tick(id), 250);
+    } catch (e) {
+      if (id !== run) return; stopMic();
+      ui('error', e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'マイクの使用が許可されていません。' : 'マイクを使えませんでした。');
+    }
+  }
+  function tick(id) {
+    if (id !== run || !recorder) return;
+    const sec = (Date.now() - recStart) / 1000;
+    $('vSub').textContent = `録音中 ${clock(sec)} ／ 最長 ${clock(maxSec)}　話し終えたら、マイクをもう一度押してください。` + (maxSec - sec <= 15 ? `（あと${Math.ceil(maxSec - sec)}秒で自動的に止まります）` : '');
+    if (sec >= maxSec) stop();
+  }
+  function stop() {
+    if (!recorder || recorder.state === 'inactive') return;
+    clearInterval(recT); recT = null; ui('wait');
+    try { recorder.stop(); } catch (e) { stopMic(); ui('error', '録音を止められませんでした。'); }
+  }
+  const base64 = blob => new Promise((resolve, reject) => { const f = new FileReader(); f.onload = () => resolve(String(f.result).split(',')[1] || ''); f.onerror = () => reject(f.error); f.readAsDataURL(blob); });
+  async function transcribe(id, got, type, sec) {
+    if (id !== run) return;
+    const mime = TYPES[type];
+    if (sec < 1 || !got.length) return ui('error', '声が短すぎて聞き取れませんでした。');
+    if (!mime) return ui('error', 'この端末の録音形式には対応していません。');
+    let text = null, error = '';
+    try { const audio = await base64(new Blob(got, {type})); if (id !== run) return; const r = await call('transcribe', {audio, mime}, 60000); if (typeof r.text === 'string') text = r.text; }
+    catch (e) { error = e.message; }
+    if (id !== run) return;
+    if (text === null) return ui('error', error === 'voice_rate_limit' ? 'ただいま混み合っています。少し待ってからお試しください。' : '文字にできませんでした。');
+    if (!text.trim()) return ui('error', '声を聞き取れませんでした。');
+    // 欄に書きかけがあれば後ろに続ける。上限を超えたら「〇文字にまとめる」を出す（押したときだけ要約）。
+    const box = $('text'), whole = (box.value.trim() ? box.value.replace(/\s+$/,'') : '') + text.trim();
+    reset(); box.value = whole; show('edit'); validate();
+    if (charLen(flat(whole)) > limit) $('msg').textContent = `${limit}文字を超えています。欄で短くするか「${limit}文字にまとめる」を押してください。`;
+  }
+  $('vMic').addEventListener('click', () => recorder ? stop() : start());
+  $('retry').addEventListener('click', start);
+  $('again').addEventListener('click', () => { $('text').value = ''; reset(); start(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && (recorder || stream)) { run++; stopMic(); ui('idle'); } });
+  window.addEventListener('pagehide', stopMic);
+
+  /* 「〇文字にまとめる」「文章を修正」：押したときだけAIへ。案は欄に入れるだけ。元の文を見比べ、戻せる。待つ間に本人が直したら案は入れない。 */
+  const sumLabel = () => `${limit}文字にまとめる`;
+  function reset() { fixRun++; before = null; $('revert').hidden = true; $('orig').hidden = true; $('orig').open = false; [$('fix'), $('sum')].forEach(b => b.disabled = false); $('fix').textContent = '文章を修正'; $('msg').textContent = ''; validate(); }
+  function validate() {
+    const n = charLen(flat($('text').value));
+    $('count').textContent = `${n} / ${limit}文字`; $('count').classList.toggle('over', n > limit);
+    $('sum').hidden = n <= limit; if (!$('sum').disabled) $('sum').textContent = sumLabel();
+    $('review').disabled = !(rel && n > 0 && n <= limit);
+  }
+  async function ask(btn, busy, label, request, done) {
+    const box = $('text'), asked = box.value, id = ++fixRun;
+    if (!asked.trim()) return;
+    [$('fix'), $('sum')].forEach(b => b.disabled = true); btn.textContent = busy; $('msg').textContent = '';
+    let next = null;
+    try { next = await request(flat(asked)); } catch (e) {}
+    if (id !== fixRun) return;
+    [$('fix'), $('sum')].forEach(b => b.disabled = false); btn.textContent = label;
+    if (box.value !== asked) { $('msg').textContent = '待っている間に文字が直されたため、案は入れませんでした。'; return; }
+    if (typeof next !== 'string' || !next.trim()) { $('msg').textContent = 'うまくいきませんでした。そのまま欄で直して確認へ進めます。'; validate(); return; }
+    before = asked; box.value = next; $('revert').hidden = false; $('orig').hidden = false; $('origText').textContent = asked;
+    $('msg').textContent = done(next, asked); validate();
+  }
+  $('sum').addEventListener('click', () => ask($('sum'), 'まとめています…', sumLabel(), async t => (await call('summarize', {text:t}, 30000)).text,
+    () => `${limit}文字以内にまとめました。元の文と見比べて、違うところは欄で直してください。`));
+  $('fix').addEventListener('click', () => ask($('fix'), '文章を修正しています…', '文章を修正', async t => { const r = await call('correct', {lines:[t], source:'voice'}); return Array.isArray(r.lines) && r.lines.length === 1 ? r.lines[0] : null; },
+    (next, asked) => next === flat(asked) ? '直すところは見つかりませんでした。' : '文章を修正しました。違うところは欄で直してください。'));
+  $('revert').addEventListener('click', () => { if (before === null) return; $('text').value = before; before = null; $('revert').hidden = true; $('orig').hidden = true; $('msg').textContent = '元の文に戻しました。'; validate(); });
+  $('text').addEventListener('input', validate);
+
+  /* 確認→送信。送信を始めたら同じIDで再送する（保存の応答が届かなくても1件のまま）。本人が確定した文だけを保存する。 */
+  $('review').addEventListener('click', () => {
+    sending = {id:newId(), kind:'general', relation:rel, text:flat($('text').value), hidden:false, sample:false, createdAt:Date.now()};
+    $('pvText').textContent = sending.text; $('pvRel').textContent = '— ' + rel + ' —';
+    $('status').hidden = true; $('send').disabled = false; $('backEdit').disabled = false; show('confirm');
+  });
+  $('backEdit').addEventListener('click', () => { sending = null; show('edit'); });
+  $('send').addEventListener('click', async () => {
+    const st = $('status'); $('send').disabled = true; $('backEdit').disabled = true; st.hidden = false; st.className = 'status wait'; st.textContent = '送っています…';
+    store.local(PENDING, JSON.stringify(sending));
+    try {
+      const r = await call('addPost', {post:sending});
+      if (r.saved !== true || r.id !== sending.id) throw new Error('unconfirmed');
+      store.local(PENDING, null); sending = null; $('text').value = ''; rel = ''; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed','false')); reset(); show('done');
+    } catch (e) { st.className = 'status ng'; st.textContent = '送れませんでした。もう一度「送る」を押してください。内容は残っています。'; $('send').disabled = false; }
+  });
+  $('more').addEventListener('click', start);
+
+  // 開いたとき：案件の状態と上限を確かめる。前に送りかけた投稿があれば、その確認画面から再送できる。
+  (async () => {
+    show('talk'); ui('starting'); $('vSub').textContent = '会場とつないでいます…';
+    let feed;
+    try { feed = await call('feed'); }
+    catch (e) {
+      $('talk').hidden = true; $('bad').hidden = false;
+      $('badText').textContent = ['event_expired','event_deleted'].includes(e.message) ? 'この案件の受付は終了しました。' :
+        e.message === 'unauthorized' ? '投稿用のリンクが正しくありません。会場のQRから開き直してください。' : '会場とつながりませんでした。通信を確かめて、開き直してください。';
+      return;
+    }
+    limit = Number(feed.settings && feed.settings.limit) || 100;
+    maxSec = Math.min(180, Math.max(20, Number(feed.capabilities && feed.capabilities.voiceSeconds) || 90));
+    if (!(feed.capabilities && feed.capabilities.voice)) { $('talk').hidden = true; $('bad').hidden = false; $('badText').textContent = 'この案件では、いま声での入力を使えません。下の「文字で入力する」からお送りください。'; return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') { ui('error', 'この端末では録音できません。'); return; }
+    try {
+      const old = JSON.parse(store.local(PENDING) || 'null');
+      if (old && old.id && old.text) { sending = old; rel = old.relation; $('pvText').textContent = old.text; $('pvRel').textContent = '— ' + rel + ' —'; $('backEdit').disabled = true; show('confirm'); return; }
+    } catch (e) {}
+    ui('idle'); validate();
+  })();
+})();
+</script>
+</html>
