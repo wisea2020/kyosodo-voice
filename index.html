@@ -85,7 +85,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   </div>
 
   <div class="panel" id="form" hidden>
-    <h1>故人へのメッセージ</h1>
+    <h1 id="title">故人へのメッセージ</h1>
     <p class="lead">ご遺族もご覧になります。お書きいただいたメッセージは、確認のあと会場の画面に流れます。</p>
     <span class="label" id="relLabel">故人とのご関係</span>
     <div class="rels" id="rels" role="group" aria-labelledby="relLabel"></div>
@@ -323,6 +323,8 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
       return;
     }
     conn('ok', '会場と接続中');
+    // 案件に故人のお名前があれば「〇〇様へのメッセージ」
+    if (typeof feed.deceasedName === 'string' && feed.deceasedName.trim()) $('title').textContent = feed.deceasedName.trim() + '様へのメッセージ';
     limit = Number(feed.settings && feed.settings.limit) || 100;
     maxSec = Math.min(180, Math.max(20, Number(feed.capabilities && feed.capabilities.voiceSeconds) || 90));
     voice = !!(feed.capabilities && feed.capabilities.voice) && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && typeof MediaRecorder !== 'undefined';
