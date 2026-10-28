@@ -180,7 +180,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     $('rels').append(b);
   });
   // 書きかけはこの端末に残す（電波が切れて開き直しても消えない）。送ったら消す。
-  const saveDraft = () => store.local(DRAFT, $('text').value || rel ? JSON.stringify({text:$('text').value, relation:rel}) : null);
+  const saveDraft = () => store.local(DRAFT, $('text').value || rel ? JSON.stringify({text:$('text').value, relation:rel, voiced}) : null);
 
   /* 画面を消さない頼み（Screen Wake Lock）。音声入力の途中で画面が消えると録音が止まるため、マイクを押してから送り終えるか消すまで頼む。
      Android Chrome・iPhone iOS 16.4以降。対応しない端末では何もしない。別のアプリへ移ると端末側が外すので、戻ったら頼み直す。 */
@@ -328,7 +328,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     voice = !!(feed.capabilities && feed.capabilities.voice) && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && typeof MediaRecorder !== 'undefined';
     $('micBtn').hidden = !voice;
     $('limitNote').textContent = `メッセージは${limit}文字以内です。長くなった場合は、あとで修正することができます。`;
-    try { const d = JSON.parse(store.local(DRAFT) || 'null'); if (d) { $('text').value = d.text || ''; if (RELATIONS.includes(d.relation)) pick(d.relation); } } catch (e) {}
+    try { const d = JSON.parse(store.local(DRAFT) || 'null'); if (d) { $('text').value = d.text || ''; voiced = d.voiced === true && !!$('text').value.trim(); if (RELATIONS.includes(d.relation)) pick(d.relation); } } catch (e) {}
     show('form'); validate();
     try {
       const old = JSON.parse(store.local(PENDING) || 'null');
