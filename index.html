@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<title>声でメッセージ</title>
+<title>音声入力でメッセージ</title>
 <style>
 /* スマホの音声入力ページ（docs/VOICE_INPUT_IMPLEMENTATION.md）。GASの画面の中ではマイクが使えないため、GASの外（GitHub Pages）に置く。
    案件・投稿用合言葉・GASのURLは投稿画面から #以降 で受け取る。合言葉・キー・投稿内容はこのファイルに含めない。配色は投稿画面と同じ。 */
@@ -42,6 +42,12 @@ h1{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em;
 .vSay{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:.1em;margin:18px 0 0}
 .vSub{font-size:14px;color:var(--ink2);margin:6px 0 0;min-height:1.6em}
 .vSub.rec{color:var(--ng);font-weight:700}
+.note{font-size:14px;margin:-8px 0 12px;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--warn)}
+.steps{margin:0 0 4px;padding-left:1.4em;font-size:14px;color:var(--ink2)}.steps .red{color:var(--ng)}
+.recBadge{display:inline-block;margin:14px 0 0;padding:4px 14px;border-radius:999px;background:var(--ng);color:var(--bg);font-weight:700;letter-spacing:.12em}
+.recBadge span{animation:blink 1s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.recBadge span{animation:none}}
 textarea{width:100%;min-height:170px;font-family:var(--serif);font-size:19px;line-height:1.8;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);resize:vertical}
 .count{text-align:right;font-size:13px;color:var(--ink2);margin-top:4px}.count.over{color:var(--ng);font-weight:700}
 .tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.tools .btn{padding:9px 14px;font-size:14px}
@@ -58,14 +64,17 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
 <main>
   <div class="panel" id="bad" hidden>
     <h1>ページを開けませんでした</h1>
-    <p class="lead" id="badText">会場の投稿画面から「声で入力」を押して開いてください。</p>
+    <p class="lead" id="badText">会場の投稿画面から「音声入力」を押して開いてください。</p>
   </div>
 
   <div class="panel" id="talk" hidden>
-    <h1>声でメッセージを残す</h1>
-    <p class="lead">マイクを押してお話しください。話し終えたら、もう一度マイクを押します。文字にしたあと、直してから送れます。</p>
+    <h1>音声入力でメッセージを書く</h1>
+    <p class="lead">お話しになった言葉を<b>文字にして</b>送ります（声そのものは送られず、残りません）。文字にしたあと、直してから送れます。</p>
+    <p class="note" id="limitNote">メッセージは<b>100文字以内</b>でお願いします（お話しで20秒ほどです）。長くなったときは、あとで100文字にまとめることもできます。</p>
+    <ol class="steps"><li>緑のマイクを押すと録音が始まります</li><li>マイクが<b class="red">赤</b>の間は録音中です。お話しください</li><li>話し終えたら、赤いマイクをもう一度押します</li></ol>
     <div class="mic">
       <button type="button" class="vMic" id="vMic" aria-label="録音を始める"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <p class="recBadge" id="recBadge" hidden><span aria-hidden="true">●</span> 録音中</p>
       <p class="vSay" id="vSay">マイクを押してお話しください</p>
       <p class="vSub" id="vSub" role="status"></p>
     </div>
@@ -107,7 +116,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   <div class="panel done" id="done" hidden>
     <h2>ありがとうございました</h2>
     <p class="lead">会場の画面に、お寄せいただいたメッセージが加わりました。</p>
-    <div class="row"><button type="button" class="btn" id="more">もう一通話す</button></div>
+    <div class="row"><button type="button" class="btn" id="more">もう一通、音声入力する</button></div>
   </div>
 
   <a class="back" id="backLink" hidden>文字で入力する（投稿画面に戻る）</a>
@@ -166,8 +175,8 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   function ui(mode, msg = '') {
     const mic = $('vMic'); mic.classList.toggle('rec', mode === 'rec'); mic.disabled = mode === 'starting' || mode === 'wait'; mic.hidden = mode === 'error';
     mic.setAttribute('aria-label', mode === 'rec' ? '録音を止める' : '録音を始める');
-    $('vSub').classList.toggle('rec', mode === 'rec'); $('talkRetry').hidden = mode !== 'error';
-    $('vSay').textContent = {idle:'マイクを押してお話しください', starting:'お話ください', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
+    $('vSub').classList.toggle('rec', mode === 'rec'); $('talkRetry').hidden = mode !== 'error'; $('recBadge').hidden = mode !== 'rec';
+    $('vSay').textContent = {idle:'マイクを押すと録音が始まります', starting:'マイクを準備しています', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
     $('vSub').textContent = mode === 'starting' ? 'マイクを準備しています…' : mode === 'wait' ? 'しばらくお待ちください。' : mode === 'error' ? '下の「文字で入力する」から、文字でも送れます。' : '';
   }
   const clock = sec => `${Math.floor(sec/60)}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
@@ -190,7 +199,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   function tick(id) {
     if (id !== run || !recorder) return;
     const sec = (Date.now() - recStart) / 1000;
-    $('vSub').textContent = `録音中 ${clock(sec)} ／ 最長 ${clock(maxSec)}　話し終えたら、マイクをもう一度押してください。` + (maxSec - sec <= 15 ? `（あと${Math.ceil(maxSec - sec)}秒で自動的に止まります）` : '');
+    $('vSub').textContent = `${clock(sec)} ／ 最長 ${clock(maxSec)}　話し終えたら、赤いマイクを押して止めます。` + (maxSec - sec <= 15 ? `（あと${Math.ceil(maxSec - sec)}秒で自動的に止まります）` : '');
     if (sec >= maxSec) stop();
   }
   function stop() {
@@ -215,7 +224,17 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     reset(); box.value = whole; show('edit'); validate();
     if (charLen(flat(whole)) > limit) $('msg').textContent = `${limit}文字を超えています。欄で短くするか「${limit}文字にまとめる」を押してください。`;
   }
-  $('vMic').addEventListener('click', () => recorder ? stop() : start());
+  /* 入力の途中で画面が消えると録音が止まるため、このページを開いている間は画面を消さないよう頼む（Screen Wake Lock。
+     Android Chrome・iPhone iOS 16.4以降。対応しない端末では何もしない）。別のアプリへ移ったら端末側が外すので、戻ったら頼み直す。 */
+  let wake = null, keepAwake = false;
+  async function awake(on) {
+    keepAwake = on;
+    if (!on) { const w = wake; wake = null; if (w) w.release().catch(() => {}); return; }
+    if (wake || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) return;
+    try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch (e) { wake = null; }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && keepAwake) awake(true); });
+  $('vMic').addEventListener('click', () => { awake(true); recorder ? stop() : start(); });
   $('retry').addEventListener('click', start);
   $('again').addEventListener('click', () => { $('text').value = ''; reset(); start(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && (recorder || stream)) { run++; stopMic(); ui('idle'); } });
@@ -263,10 +282,10 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     try {
       const r = await call('addPost', {post:sending});
       if (r.saved !== true || r.id !== sending.id) throw new Error('unconfirmed');
-      store.local(PENDING, null); sending = null; $('text').value = ''; rel = ''; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed','false')); reset(); show('done');
+      store.local(PENDING, null); sending = null; $('text').value = ''; rel = ''; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed','false')); reset(); show('done'); awake(false);
     } catch (e) { st.className = 'status ng'; st.textContent = '送れませんでした。もう一度「送る」を押してください。内容は残っています。'; $('send').disabled = false; }
   });
-  $('more').addEventListener('click', start);
+  $('more').addEventListener('click', () => { awake(true); start(); });
 
   // 開いたとき：案件の状態と上限を確かめる。前に送りかけた投稿があれば、その確認画面から再送できる。
   (async () => {
@@ -281,13 +300,14 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     }
     limit = Number(feed.settings && feed.settings.limit) || 100;
     maxSec = Math.min(180, Math.max(20, Number(feed.capabilities && feed.capabilities.voiceSeconds) || 90));
-    if (!(feed.capabilities && feed.capabilities.voice)) { $('talk').hidden = true; $('bad').hidden = false; $('badText').textContent = 'この案件では、いま声での入力を使えません。下の「文字で入力する」からお送りください。'; return; }
+    $('limitNote').innerHTML = `メッセージは<b>${limit}文字以内</b>でお願いします（お話しで${Math.max(5, Math.round(limit / 5))}秒ほどです）。長くなったときは、あとで${limit}文字にまとめることもできます。`;
+    if (!(feed.capabilities && feed.capabilities.voice)) { $('talk').hidden = true; $('bad').hidden = false; $('badText').textContent = 'この案件では、いま音声入力を使えません。下の「文字で入力する」からお送りください。'; return; }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') { ui('error', 'この端末では録音できません。'); return; }
     try {
       const old = JSON.parse(store.local(PENDING) || 'null');
       if (old && old.id && old.text) { sending = old; rel = old.relation; $('pvText').textContent = old.text; $('pvRel').textContent = '— ' + rel + ' —'; $('backEdit').disabled = true; show('confirm'); return; }
     } catch (e) {}
-    ui('idle'); validate();
+    ui('idle'); validate(); awake(true);
   })();
 })();
 </script>
