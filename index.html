@@ -3,10 +3,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
-<title>音声入力でメッセージ</title>
+<title>メモリアルメッセージ</title>
 <style>
-/* スマホの音声入力ページ（docs/VOICE_INPUT_IMPLEMENTATION.md）。GASの画面の中ではマイクが使えないため、GASの外（GitHub Pages）に置く。
-   案件・投稿用合言葉・GASのURLは投稿画面から #以降 で受け取る。合言葉・キー・投稿内容はこのファイルに含めない。配色は投稿画面と同じ。 */
+/* スマホの投稿ページ（docs/POST_PAGE.md）。GASの画面にはGoogleの注意書きが出て、スマホのマイクも使えないため、GASの外（GitHub Pages）に置く。
+   案件・投稿用合言葉・GASのURLは投稿用QRのURLの #以降 で受け取る。合言葉・キー・投稿内容はこのファイルに含めない。外部のスクリプト・フォントも読まない。配色はGASの投稿画面と同じ。 */
 :root{
   --bg:#f5f4ef;--paper:#fffefa;--ink:#26332e;--ink2:#62706a;--line:#dfe2da;
   --accent:#426b5c;--accent-ink:#ffffff;--accent-soft:#e6ede7;--warn:#8f5f26;--warn-soft:#f8efdf;--ng:#a3443a;--ng-soft:#f7e5e1;
@@ -18,21 +18,33 @@
   --accent:#7fb29c;--accent-ink:#10201a;--accent-soft:#233630;--warn:#e0b678;--warn-soft:#3a2f1e;--ng:#ec9a8f;--ng-soft:#3d2421;color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;padding:16px 16px max(24px,env(safe-area-inset-bottom))}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;padding:16px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 button,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 main{max-width:560px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:18px}
+.brand{display:inline-flex;flex-direction:column;align-items:center;gap:3px;line-height:1}
+.brand b{font-family:'Cormorant Garamond','Garamond','Georgia','Times New Roman',serif;font-weight:500;font-size:25px;letter-spacing:.06em}
+.brand small{display:flex;align-items:center;gap:8px;align-self:stretch;font-family:'Garamond','Georgia',serif;font-size:11.5px;font-weight:600;letter-spacing:.42em;color:var(--accent)}
+.brand small::before,.brand small::after{content:"";flex:1;height:1px;background:currentColor;opacity:.45}
+.conn{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink2);padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper)}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.conn[data-state="ok"] i{background:var(--accent)}.conn[data-state="ng"] i{background:var(--ng)}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
-h1{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em;margin:0}
+h1{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:.06em;margin:0}
 .lead{color:var(--ink2);font-size:14px;margin:6px 0 16px}
 .label{display:block;font-weight:700;font-size:13px;margin:16px 0 8px}
 .rels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
-.rels button{padding:12px 8px;border:1px solid var(--line);border-radius:11px;background:var(--bg);font-size:15px}
+.rels button{padding:13px 8px;border:1px solid var(--line);border-radius:11px;background:var(--bg);font-size:15px}
 .rels button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .btn{border:1px solid var(--line);background:var(--paper);border-radius:11px;padding:11px 16px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .row{display:flex;gap:10px;margin-top:16px}.row .btn{flex:1;padding:14px;font-size:16px}
+.msgHead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:18px 0 8px}.msgHead .label{margin:0}
+.micBtn{gap:6px;padding:9px 14px;font-size:15px;border-color:var(--accent);color:var(--accent)}
+.micBtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .mic{text-align:center;padding:12px 0 4px}
 .vMic{width:min(52vw,180px);aspect-ratio:1;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;margin:8px auto 0}
 .vMic svg{width:46%;height:46%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -49,7 +61,7 @@ h1{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em;
 @keyframes blink{to{visibility:hidden}}
 @media (prefers-reduced-motion:reduce){.recBadge span{animation:none}}
 textarea{width:100%;min-height:170px;font-family:var(--serif);font-size:19px;line-height:1.8;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);resize:vertical}
-.count{text-align:right;font-size:13px;color:var(--ink2);margin-top:4px}.count.over{color:var(--ng);font-weight:700}
+.count{text-align:right;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums;margin-top:4px}.count.over{color:var(--ng);font-weight:700}
 .tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.tools .btn{padding:9px 14px;font-size:14px}
 .msg{font-size:13px;color:var(--ink2);margin-top:6px}
 details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;padding:10px;border:1px dashed var(--line);border-radius:10px}
@@ -58,13 +70,40 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
 .preview span{display:block;margin-top:12px;color:var(--ink2);font-size:13px;letter-spacing:.12em}
 .status{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:14px;font-weight:700}
 .status.wait{background:var(--warn-soft);color:var(--warn)}.status.ng{background:var(--ng-soft);color:var(--ng)}
-.back{display:block;text-align:center;margin-top:16px;font-size:14px;color:var(--ink2)}
+.back{display:block;width:100%;margin-top:16px;border:0;background:none;text-align:center;font-size:14px;color:var(--ink2);text-decoration:underline}
 .done{text-align:center}.done h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:8px 0}
 </style>
 <main>
+  <header class="top">
+    <div class="brand" role="img" aria-label="Memorial Message System"><b>Memorial Message</b><small>SYSTEM</small></div>
+    <span class="conn" id="conn" data-state="wait"><i></i><span id="connText">接続を確認しています</span></span>
+  </header>
+
   <div class="panel" id="bad" hidden>
     <h1>ページを開けませんでした</h1>
-    <p class="lead" id="badText">会場の投稿画面から「音声入力」を押して開いてください。</p>
+    <p class="lead" id="badText">会場のQRコードから開いてください。</p>
+  </div>
+
+  <div class="panel" id="form" hidden>
+    <h1>故人へのメッセージ</h1>
+    <p class="lead">ご遺族もご覧になります。お書きいただいたメッセージは、確認のあと会場の画面に流れます。</p>
+    <span class="label" id="relLabel">故人とのご関係</span>
+    <div class="rels" id="rels" role="group" aria-labelledby="relLabel"></div>
+    <div class="msgHead"><label class="label" for="text">メッセージ</label><button type="button" class="btn micBtn" id="micBtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>音声入力</button></div>
+    <textarea id="text" placeholder="思い出や、伝えたいことをお書きください"></textarea>
+    <div class="count" id="count"></div>
+    <div class="tools" id="tools" hidden>
+      <button type="button" class="btn" id="sum" hidden></button>
+      <button type="button" class="btn" id="fix">文章を修正</button>
+      <button type="button" class="btn" id="revert" hidden>元の文に戻す</button>
+      <button type="button" class="btn" id="again">話し直す</button>
+    </div>
+    <p class="msg" id="msg" role="status"></p>
+    <details id="orig" hidden><summary>元の文を見る</summary><p id="origText"></p></details>
+    <div class="row">
+      <button type="button" class="btn" id="clear">消す</button>
+      <button type="button" class="btn primary" id="review" disabled>確認へ進む</button>
+    </div>
   </div>
 
   <div class="panel" id="talk" hidden>
@@ -74,31 +113,11 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     <div class="mic">
       <button type="button" class="vMic" id="vMic" aria-label="録音を始める"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
       <p class="recBadge" id="recBadge" hidden><span aria-hidden="true">●</span> 録音中</p>
-      <p class="vSay" id="vSay">マイクを押してお話しください</p>
+      <p class="vSay" id="vSay">マイクを押して開始</p>
       <p class="vSub" id="vSub" role="status"></p>
     </div>
     <div class="row" id="talkRetry" hidden><button type="button" class="btn primary" id="retry">もう一度話す</button></div>
-  </div>
-
-  <div class="panel" id="edit" hidden>
-    <h1>お話しいただいた内容</h1>
-    <p class="lead">文字が違うところは欄で直してください。ご遺族もご覧になります。</p>
-    <span class="label" id="relLabel">故人とのご関係</span>
-    <div class="rels" id="rels" role="group" aria-labelledby="relLabel"></div>
-    <label class="label" for="text">メッセージ</label>
-    <textarea id="text"></textarea>
-    <div class="count" id="count"></div>
-    <div class="tools">
-      <button type="button" class="btn" id="sum" hidden></button>
-      <button type="button" class="btn" id="fix">文章を修正</button>
-      <button type="button" class="btn" id="revert" hidden>元の文に戻す</button>
-    </div>
-    <p class="msg" id="msg" role="status"></p>
-    <details id="orig" hidden><summary>元の文を見る</summary><p id="origText"></p></details>
-    <div class="row">
-      <button type="button" class="btn" id="again">話し直す</button>
-      <button type="button" class="btn primary" id="review" disabled>確認へ進む</button>
-    </div>
+    <button type="button" class="back" id="toForm">文字で入力する</button>
   </div>
 
   <div class="panel" id="confirm" hidden>
@@ -106,7 +125,7 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     <p class="lead">画面にはこのように表示されます。お名前ではなく、ご関係が表示されます。</p>
     <div class="preview"><p id="pvText"></p><span id="pvRel"></span></div>
     <div class="row">
-      <button type="button" class="btn" id="backEdit">直す</button>
+      <button type="button" class="btn" id="backEdit">書き直す</button>
       <button type="button" class="btn primary" id="send">送る</button>
     </div>
     <div class="status" id="status" hidden></div>
@@ -115,10 +134,8 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   <div class="panel done" id="done" hidden>
     <h2>ありがとうございました</h2>
     <p class="lead">会場の画面に、お寄せいただいたメッセージが加わりました。</p>
-    <div class="row"><button type="button" class="btn" id="more">もう一通、音声入力する</button></div>
+    <div class="row"><button type="button" class="btn" id="more">もう一通書く</button></div>
   </div>
-
-  <a class="back" id="backLink" hidden>文字で入力する（投稿画面に戻る）</a>
 </main>
 <script>
 (() => {
@@ -130,18 +147,17 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
   const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9]/g,'');
   const store = {get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},
     local(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}};
+  const conn = (state, text) => { $('conn').dataset.state = state; $('connText').textContent = text; };
 
-  // 投稿画面から #e=案件&k=投稿用合言葉&api=GASのURL で受け取る。アドレス欄からは消し、このタブの間だけ覚える（再読込用）。
+  // 投稿用QRのURLの #e=案件&k=投稿用合言葉&api=GASのURL で受け取る。アドレス欄からは消し、このタブの間だけ覚える（再読込用）。
   const hash = new URLSearchParams(location.hash.slice(1));
   let link = {e:hash.get('e')||'', k:hash.get('k')||'', api:hash.get('api')||''};
-  if (link.e) { store.set('voice-link', JSON.stringify(link)); history.replaceState(null, '', location.pathname + location.search); }
-  else { try { link = JSON.parse(store.get('voice-link') || '{}'); } catch (e) { link = {}; } }
+  if (link.e) { store.set('post-link', JSON.stringify(link)); history.replaceState(null, '', location.pathname + location.search); }
+  else { try { link = JSON.parse(store.get('post-link') || '{}'); } catch (e) { link = {}; } }
   const valid = /^[A-Za-z0-9_-]{1,48}$/.test(link.e||'') && /^[A-Za-z0-9]{1,256}$/.test(link.k||'') &&
     /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(link.api||'');
-  if (!valid) { $('bad').hidden = false; return; }
-  $('backLink').href = link.api + '?event=' + encodeURIComponent(link.e) + '&role=post#k=' + link.k;
-  $('backLink').hidden = false;
-  const PENDING = 'memorial-voice:' + link.e + ':pending';
+  if (!valid) { $('bad').hidden = false; conn('ng', 'つながっていません'); return; }
+  const PENDING = 'memorial-post:' + link.e + ':pending', DRAFT = 'memorial-post:' + link.e + ':draft';
 
   // GASのdoPostへ送る（会場PCのアプリと同じ、事前確認の起きない text/plain）。
   async function call(action, data = {}, timeout = 20000) {
@@ -155,15 +171,29 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     } finally { clearTimeout(timer); }
   }
 
-  let limit = 100, maxSec = 90, rel = '', sending = null, before = null, fixRun = 0;
-  const show = id => ['talk','edit','confirm','done'].forEach(s => $(s).hidden = s !== id);
+  let limit = 100, maxSec = 90, voice = false, rel = '', sending = null, before = null, fixRun = 0, voiced = false;
+  const show = id => ['form','talk','confirm','done'].forEach(s => $(s).hidden = s !== id);
+  const pick = r => { rel = r; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed', String(x.textContent === r))); };
   RELATIONS.forEach(r => {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = r; b.setAttribute('aria-pressed','false');
-    b.addEventListener('click', () => { rel = r; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed', String(x === b))); validate(); });
+    b.addEventListener('click', () => { pick(r); saveDraft(); validate(); });
     $('rels').append(b);
   });
+  // 書きかけはこの端末に残す（電波が切れて開き直しても消えない）。送ったら消す。
+  const saveDraft = () => store.local(DRAFT, $('text').value || rel ? JSON.stringify({text:$('text').value, relation:rel}) : null);
 
-  /* 録音：中央のマイクで開始・停止。上限秒数で自動停止してそのまま文字にする。やめる・画面を離れたらマイクを止めて捨てる。 */
+  /* 画面を消さない頼み（Screen Wake Lock）。音声入力の途中で画面が消えると録音が止まるため、マイクを押してから送り終えるか消すまで頼む。
+     Android Chrome・iPhone iOS 16.4以降。対応しない端末では何もしない。別のアプリへ移ると端末側が外すので、戻ったら頼み直す。 */
+  let wake = null, keepAwake = false;
+  async function awake(on) {
+    keepAwake = on;
+    if (!on) { const w = wake; wake = null; if (w) w.release().catch(() => {}); return; }
+    if (wake || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) return;
+    try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch (e) { wake = null; }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && keepAwake) awake(true); });
+
+  /* 音声入力：中央のマイクで開始・停止。上限秒数で自動停止してそのまま文字にし、入力欄の後ろに続ける。やめる・画面を離れたらマイクを止めて捨てる。 */
   let run = 0, stream = null, recorder = null, chunks = [], recStart = 0, recT = null;
   function stopMic() {
     clearInterval(recT); recT = null;
@@ -176,11 +206,13 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     mic.setAttribute('aria-label', mode === 'rec' ? '録音を止める' : '録音を始める');
     $('vSub').classList.toggle('rec', mode === 'rec'); $('talkRetry').hidden = mode !== 'error'; $('recBadge').hidden = mode !== 'rec';
     $('vSay').textContent = {idle:'マイクを押して開始', starting:'マイクを準備しています', rec:'お話ください', wait:'文字にしています…', error:msg}[mode];
-    $('vSub').textContent = mode === 'starting' ? 'マイクを準備しています…' : mode === 'wait' ? 'しばらくお待ちください。' : mode === 'error' ? '下の「文字で入力する」から、文字でも送れます。' : '';
+    $('vSub').textContent = mode === 'starting' ? 'しばらくお待ちください。' : mode === 'wait' ? 'しばらくお待ちください。' : mode === 'error' ? '下の「文字で入力する」から、文字でも送れます。' : '';
   }
   const clock = sec => `${Math.floor(sec/60)}:${String(Math.floor(sec%60)).padStart(2,'0')}`;
+  function talk() { run++; stopMic(); awake(true); show('talk'); ui('idle'); }
+  function leaveTalk() { run++; stopMic(); show('form'); validate(); }
   async function start() {
-    run++; stopMic(); const id = run; show('talk'); ui('starting');
+    run++; stopMic(); const id = run; show('talk'); ui('starting'); awake(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, channelCount:1}});
       if (id !== run) { s.getTracks().forEach(t => t.stop()); return; }
@@ -220,31 +252,24 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     if (!text.trim()) return ui('error', '声を聞き取れませんでした。');
     // 欄に書きかけがあれば後ろに続ける。上限を超えたら「〇文字にまとめる」を出す（押したときだけ要約）。
     const box = $('text'), whole = (box.value.trim() ? box.value.replace(/\s+$/,'') : '') + text.trim();
-    reset(); box.value = whole; show('edit'); validate();
+    reset(); voiced = true; box.value = whole; saveDraft(); show('form'); validate();
     if (charLen(flat(whole)) > limit) $('msg').textContent = `${limit}文字を超えています。欄で短くするか「${limit}文字にまとめる」を押してください。`;
   }
-  /* 入力の途中で画面が消えると録音が止まるため、このページを開いている間は画面を消さないよう頼む（Screen Wake Lock。
-     Android Chrome・iPhone iOS 16.4以降。対応しない端末では何もしない）。別のアプリへ移ったら端末側が外すので、戻ったら頼み直す。 */
-  let wake = null, keepAwake = false;
-  async function awake(on) {
-    keepAwake = on;
-    if (!on) { const w = wake; wake = null; if (w) w.release().catch(() => {}); return; }
-    if (wake || document.visibilityState !== 'visible' || !('wakeLock' in navigator)) return;
-    try { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } catch (e) { wake = null; }
-  }
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && keepAwake) awake(true); });
-  $('vMic').addEventListener('click', () => { awake(true); recorder ? stop() : start(); });
+  $('micBtn').addEventListener('click', talk);
+  $('vMic').addEventListener('click', () => recorder ? stop() : start());
   $('retry').addEventListener('click', start);
-  $('again').addEventListener('click', () => { $('text').value = ''; reset(); start(); });
+  $('toForm').addEventListener('click', leaveTalk);
+  $('again').addEventListener('click', () => { $('text').value = ''; reset(); saveDraft(); start(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && (recorder || stream)) { run++; stopMic(); ui('idle'); } });
   window.addEventListener('pagehide', stopMic);
 
-  /* 「〇文字にまとめる」「文章を修正」：押したときだけAIへ。案は欄に入れるだけ。元の文を見比べ、戻せる。待つ間に本人が直したら案は入れない。 */
+  /* 「〇文字にまとめる」「文章を修正」は音声入力のあとだけ出す。押したときだけAIへ。案は欄に入れるだけ。元の文を見比べ、戻せる。待つ間に本人が直したら案は入れない。 */
   const sumLabel = () => `${limit}文字にまとめる`;
-  function reset() { fixRun++; before = null; $('revert').hidden = true; $('orig').hidden = true; $('orig').open = false; [$('fix'), $('sum')].forEach(b => b.disabled = false); $('fix').textContent = '文章を修正'; $('msg').textContent = ''; validate(); }
+  function reset() { fixRun++; before = null; voiced = false; $('revert').hidden = true; $('orig').hidden = true; $('orig').open = false; [$('fix'), $('sum')].forEach(b => b.disabled = false); $('fix').textContent = '文章を修正'; $('msg').textContent = ''; validate(); }
   function validate() {
     const n = charLen(flat($('text').value));
     $('count').textContent = `${n} / ${limit}文字`; $('count').classList.toggle('over', n > limit);
+    $('tools').hidden = !(voice && voiced);
     $('sum').hidden = n <= limit; if (!$('sum').disabled) $('sum').textContent = sumLabel();
     $('review').disabled = !(rel && n > 0 && n <= limit);
   }
@@ -258,55 +283,57 @@ details{margin-top:8px;font-size:14px;color:var(--ink2)}details p{white-space:pr
     [$('fix'), $('sum')].forEach(b => b.disabled = false); btn.textContent = label;
     if (box.value !== asked) { $('msg').textContent = '待っている間に文字が直されたため、案は入れませんでした。'; return; }
     if (typeof next !== 'string' || !next.trim()) { $('msg').textContent = 'うまくいきませんでした。そのまま欄で直して確認へ進めます。'; validate(); return; }
-    before = asked; box.value = next; $('revert').hidden = false; $('orig').hidden = false; $('origText').textContent = asked;
+    before = asked; box.value = next; saveDraft(); $('revert').hidden = false; $('orig').hidden = false; $('origText').textContent = asked;
     $('msg').textContent = done(next, asked); validate();
   }
   $('sum').addEventListener('click', () => ask($('sum'), 'まとめています…', sumLabel(), async t => (await call('summarize', {text:t}, 45000)).text,
     () => `${limit}文字以内にまとめました。元の文と見比べて、違うところは欄で直してください。`));
   $('fix').addEventListener('click', () => ask($('fix'), '文章を修正しています…', '文章を修正', async t => { const r = await call('correct', {lines:[t], source:'voice'}); return Array.isArray(r.lines) && r.lines.length === 1 ? r.lines[0] : null; },
     (next, asked) => next === flat(asked) ? '直すところは見つかりませんでした。' : '文章を修正しました。違うところは欄で直してください。'));
-  $('revert').addEventListener('click', () => { if (before === null) return; $('text').value = before; before = null; $('revert').hidden = true; $('orig').hidden = true; $('msg').textContent = '元の文に戻しました。'; validate(); });
-  $('text').addEventListener('input', validate);
+  $('revert').addEventListener('click', () => { if (before === null) return; $('text').value = before; before = null; saveDraft(); $('revert').hidden = true; $('orig').hidden = true; $('msg').textContent = '元の文に戻しました。'; validate(); });
+  $('text').addEventListener('input', () => { saveDraft(); validate(); });
+  $('clear').addEventListener('click', () => { $('text').value = ''; reset(); saveDraft(); awake(false); $('text').focus(); });
 
   /* 確認→送信。送信を始めたら同じIDで再送する（保存の応答が届かなくても1件のまま）。本人が確定した文だけを保存する。 */
-  $('review').addEventListener('click', () => {
-    sending = {id:newId(), kind:'general', relation:rel, text:flat($('text').value), hidden:false, sample:false, createdAt:Date.now()};
-    $('pvText').textContent = sending.text; $('pvRel').textContent = '— ' + rel + ' —';
+  function confirmStep(post) {
+    sending = post; $('pvText').textContent = post.text; $('pvRel').textContent = '— ' + post.relation + ' —';
     $('status').hidden = true; $('send').disabled = false; $('backEdit').disabled = false; show('confirm');
-  });
-  $('backEdit').addEventListener('click', () => { sending = null; show('edit'); });
+  }
+  $('review').addEventListener('click', () => confirmStep({id:newId(), kind:'general', relation:rel, text:flat($('text').value), hidden:false, sample:false, createdAt:Date.now()}));
+  $('backEdit').addEventListener('click', () => { sending = null; show('form'); });
   $('send').addEventListener('click', async () => {
     const st = $('status'); $('send').disabled = true; $('backEdit').disabled = true; st.hidden = false; st.className = 'status wait'; st.textContent = '送っています…';
     store.local(PENDING, JSON.stringify(sending));
     try {
       const r = await call('addPost', {post:sending});
       if (r.saved !== true || r.id !== sending.id) throw new Error('unconfirmed');
-      store.local(PENDING, null); sending = null; $('text').value = ''; rel = ''; [...$('rels').children].forEach(x => x.setAttribute('aria-pressed','false')); reset(); show('done'); awake(false);
-    } catch (e) { st.className = 'status ng'; st.textContent = '送れませんでした。もう一度「送る」を押してください。内容は残っています。'; $('send').disabled = false; }
+      store.local(PENDING, null); sending = null; $('text').value = ''; pick(''); reset(); saveDraft(); awake(false); show('done');
+    } catch (e) { st.className = 'status ng'; st.textContent = '送れませんでした。電波の良い場所で、もう一度「送る」を押してください。内容は残っています。'; $('send').disabled = false; }
   });
-  $('more').addEventListener('click', () => { awake(true); start(); });
+  $('more').addEventListener('click', () => { show('form'); $('text').focus(); });
 
-  // 開いたとき：案件の状態と上限を確かめる。前に送りかけた投稿があれば、その確認画面から再送できる。
+  // 開いたとき：案件の状態・上限・音声入力の可否を確かめる。前に送りかけた投稿があれば、その確認画面から再送できる。
   (async () => {
-    show('talk'); ui('starting'); $('vSub').textContent = '会場とつないでいます…';
     let feed;
     try { feed = await call('feed'); }
     catch (e) {
-      $('talk').hidden = true; $('bad').hidden = false;
+      $('bad').hidden = false; conn('ng', 'つながっていません');
       $('badText').textContent = ['event_expired','event_deleted'].includes(e.message) ? 'この案件の受付は終了しました。' :
-        e.message === 'unauthorized' ? '投稿用のリンクが正しくありません。会場のQRから開き直してください。' : '会場とつながりませんでした。通信を確かめて、開き直してください。';
+        e.message === 'unauthorized' ? '投稿用のリンクが正しくありません。会場のQRコードから開き直してください。' : '会場とつながりませんでした。通信を確かめて、開き直してください。';
       return;
     }
+    conn('ok', '会場と接続中');
     limit = Number(feed.settings && feed.settings.limit) || 100;
     maxSec = Math.min(180, Math.max(20, Number(feed.capabilities && feed.capabilities.voiceSeconds) || 90));
+    voice = !!(feed.capabilities && feed.capabilities.voice) && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && typeof MediaRecorder !== 'undefined';
+    $('micBtn').hidden = !voice;
     $('limitNote').textContent = `メッセージは${limit}文字以内です。長くなった場合は、あとで修正することができます。`;
-    if (!(feed.capabilities && feed.capabilities.voice)) { $('talk').hidden = true; $('bad').hidden = false; $('badText').textContent = 'この案件では、いま音声入力を使えません。下の「文字で入力する」からお送りください。'; return; }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') { ui('error', 'この端末では録音できません。'); return; }
+    try { const d = JSON.parse(store.local(DRAFT) || 'null'); if (d) { $('text').value = d.text || ''; if (RELATIONS.includes(d.relation)) pick(d.relation); } } catch (e) {}
+    show('form'); validate();
     try {
       const old = JSON.parse(store.local(PENDING) || 'null');
-      if (old && old.id && old.text) { sending = old; rel = old.relation; $('pvText').textContent = old.text; $('pvRel').textContent = '— ' + rel + ' —'; $('backEdit').disabled = true; show('confirm'); return; }
+      if (old && old.id && old.text && RELATIONS.includes(old.relation)) { confirmStep(old); $('backEdit').disabled = true; }
     } catch (e) {}
-    ui('idle'); validate(); awake(true);
   })();
 })();
 </script>
